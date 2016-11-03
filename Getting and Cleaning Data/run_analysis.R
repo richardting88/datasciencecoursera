@@ -58,7 +58,6 @@ names(ds_combined)
 
 names(ds_combined)=gsub("-std","STD",names(ds_combined), ignore.case=TRUE)
 names(ds_combined)=gsub("-mean","Mean",names(ds_combined), ignore.case=TRUE)
-names(ds_combined)=gsub("BodyBody","Body",names(ds_combined), ignore.case=TRUE)
 names(ds_combined)=gsub("^t","Time",names(ds_combined))
 names(ds_combined)=gsub("^f","Frequency",names(ds_combined))
 names(ds_combined)=gsub("angle\\(t","angle\\(Time",names(ds_combined))
@@ -70,5 +69,7 @@ final_ds = aggregate( .~ Subject + Activity_desc, ds_combined, FUN=mean)
 final_ds = final_ds[order(final_ds$Subject, final_ds$Activity_desc), ]
 head(final_ds)
 write.table(final_ds, "./tidy_ds.txt", row.names=FALSE, sep="\t")
+
+
 
 
