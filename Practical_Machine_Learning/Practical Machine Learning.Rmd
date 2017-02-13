@@ -1,0 +1,104 @@
+---
+title: "Practical Machine Learning Project"
+author: "Richard Li"
+date: "February 12, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(cache=TRUE)
+```
+
+# Overview
+
+In today's literature, many researchers regularly perform analysis to quantify how many of a particular activity people do, but rarely quantify how well people do it. In this project, our goal is to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants to predict the manner in which they do exercise. The algorithm developed in this report will then be applied to 20 test cases in the test data and the predictions will then be submitted to the Course Project Prediction Quiz in appropriate format for automated grading.
+
+# Data
+
+We first use the following functions in R to download the training and test data sets from the given location and load into R:
+```{r}
+install.packages('caret', repos="http://cran.rstudio.com/", dependencies = TRUE)
+install.packages('randomForest', repos="http://cran.rstudio.com/", dependencies = TRUE)
+
+set.seed(519)
+#Download and Load data
+fileURL1 <- "http://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+fileURL2 <- "http://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+
+if(!file.exists(fileURL1)) {download.file(fileURL1, destfile = "pml-training.csv")}
+train <- read.csv("pml-training.csv")
+
+if(!file.exists(fileURL2)) {download.file(fileURL2, destfile = "pml-testing.csv")}
+test  <- read.csv("pml-testing.csv")
+
+dim(train)
+```
+
+To keep out enough data for validation purpose, we then partition the training data set into two, one will be used to train the model (70% of the training data) and one for validation purpose (the remaining 30% of the training data). The test data set which we downloaded from the website will be kept out of model development as it will be used for the Course Project Prediction Quiz.
+```{r}
+#Further split training into training and test (70 vs. 30)
+library(caret)
+inTrain <- createDataPartition(y = train$classe, list = FALSE, p=0.7)
+training <- train[inTrain,]
+testing <- train[-inTrain,]
+```
+
+After examined a few sample observations of this data set, it appears that a large number of the 160 variables contain many "NA"s. To make it simple for our model development, we have decided to remove all variables that contains "NA"s. 
+```{r}
+testNA = sapply(training, function(x) mean(is.na(x))) == 0
+train_ds <- training[, testNA==TRUE]
+test_ds  <- testing[, testNA==TRUE]
+dim(train_ds)
+```
+
+We then check if there are any near zero variables left in data sets:
+```{r}
+rm_NZV = nearZeroVar(train_ds)
+train_ds_fnl = train_ds[, -rm_NZV]
+test_ds_fnl = test_ds[,-rm_NZV]
+dim(train_ds_fnl)
+```
+
+The final step in data cleaning is to remove time stamps and index column:
+```{r}
+train_ds_fnl = train_ds_fnl[, -(1:5)]
+test_ds_fnl = test_ds_fnl[,-(1:5)]
+dim(train_ds_fnl)
+```
+
+# Model Development
+
+Random forest algorithm with 5-fold cross validation is then being used to develop the model:
+```{r}
+RFControl<-trainControl(method="cv", number=5, allowParallel=T, verbose=FALSE)
+RF_Model1<-train(classe~.,data=train_ds_fnl, method="rf", trControl=RFControl)
+RF_Model1$finalModel
+```
+
+Let's now examine the in-sample and out-of-sample confusion matrix to check model performance:
+
+In-sample confusion matrix:
+```{r}
+#Check the performance on in-Sample data
+inSamp_RF <- predict(RF_Model1, newdata=train_ds_fnl)
+confusion_inSample = confusionMatrix(inSamp_RF, train_ds_fnl$classe)
+confusion_inSample
+```
+
+Out-of-sample confusion matrix:
+```{r}
+#Check the performance on Ouf-of-Sample data
+OOS_RF <- predict(RF_Model1, newdata=test_ds_fnl)
+confusion_OOS = confusionMatrix(OOS_RF, test_ds_fnl$classe)
+confusion_OOS
+```
+
+As can be seen from the model results above, the accuracy is 0.9973.
+
+# Results for Course Project Prediction Quiz
+We will now apply the model we developed in the previous section on the test data set that contains 20 different test cases.
+
+```{r}
+pred_test<-predict(RF_Model1, newdata=test)
+pred_test
+```
